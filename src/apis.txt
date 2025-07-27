@@ -3,3 +3,5 @@
 - Stark County Auditor's Advanced Parcel Viewer API - https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=LOWER(OWNER)%20LIKE%20%27walter%20timothy%25%27&returnGeometry=false&spatialRel=esriSpatialRelIntersects&maxAllowableOffset=0.14929107082380833&outFields=*&outSR=102100&resultRecordCount=6
 
 - Stark County Auditors Advance parcel Viewer API Rust Implementation - https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=LOWER%28OWNER%29%20LIKE%20%27{}%25%27&returnGeometry=false&outFields=* //{} = Name
+
+- Add waypoint to bluemap api player locations java mod - https://map.goofball.rocks/maps/world/live/players.json? 
