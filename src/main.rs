@@ -1,5 +1,5 @@
 mod target;
-use target::{Target, AddParcel};
+use target::{Target, Expandable};
 
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -33,33 +33,7 @@ fn display_parcels(parcel_vec: &Vec<Value>) {
     }
 }
 
-// Depricated, used to find the db size but unneeded unless messing with upper bounds and db size changes
-fn db_size() -> u32 {
-    const OFFSET: u32 = 2000;
-    let mut iterations: u32 = 0;
-    let mut entries: u32 = 0;
-    let mut full_size: bool = true;
-    let client = Client::new();
-
-    while full_size {
-        let request_string: String = format!("https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=1%3D1&returnGeometry=false&outFields=*&resultRecordCount=2000&resultOFFSET={}", (iterations*OFFSET).to_string());
-        //println!("Requesting records from {} to {}", ((iterations*OFFSET)+1).to_string(), ((iterations+1)*OFFSET).to_string());
-        let result: Value = client.get(request_string).send().unwrap().json().unwrap();
-        let length = result["features"].as_array().unwrap().len() as u32;
-        if length < entries {
-            entries = length;
-            full_size = false;
-        } else {
-            entries = length;
-            iterations += 1;
-        }
-    }
-    //println!("Total number of records: {}", ((iterations*OFFSET)+entries).to_string());
-    return (iterations*OFFSET)+entries;
-}
-
-fn main() {
-    println!("Welcome to Goldberg Search");
+fn stark_db_search() {
     let name = input("Input Target Name (Last First): ").to_lowercase();
     // switch to loop that auto displays 5 each page
     let result_record_count = input("How many max results would you like per page? (up to 2000)");
@@ -100,4 +74,43 @@ fn main() {
         }
         }
     }
+}
+
+// Depricated, used to find the db size but unneeded unless messing with upper bounds and db size changes
+fn db_size() -> u32 {
+    const OFFSET: u32 = 2000;
+    let mut iterations: u32 = 0;
+    let mut entries: u32 = 0;
+    let mut full_size: bool = true;
+    let client = Client::new();
+
+    while full_size {
+        let request_string: String = format!("https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=1%3D1&returnGeometry=false&outFields=*&resultRecordCount=2000&resultOFFSET={}", (iterations*OFFSET).to_string());
+        //println!("Requesting records from {} to {}", ((iterations*OFFSET)+1).to_string(), ((iterations+1)*OFFSET).to_string());
+        let result: Value = client.get(request_string).send().unwrap().json().unwrap();
+        let length = result["features"].as_array().unwrap().len() as u32;
+        if length < entries {
+            entries = length;
+            full_size = false;
+        } else {
+            entries = length;
+            iterations += 1;
+        }
+    }
+    //println!("Total number of records: {}", ((iterations*OFFSET)+entries).to_string());
+    return (iterations*OFFSET)+entries;
+}
+
+fn main() {
+    println!("Welcome to Goldberg Search");
+    let choice = input("Choose a procedure: \n1. Input a profile \n2. Search Stark Database\n\nChoice: ");
+    match choice.trim() {
+        "1" => {println!("Inputting a profile is not yet supported")},
+        "2" => {stark_db_search()},
+        _ => {
+            println!("Please choose a real option");
+            //main();
+            //maybe add a while loop to go until a choice is chosen? or create a function with a while loop so there isnt a while loop in main
+        }
+    }    
 }
