@@ -1,0 +1,173 @@
+GOLDBERG SEARCH REFACTOR TASKS
+================================
+
+1. Data Model Consolidation (Target & Person)
+   Change: Replace parallel Vecs (first_names_list, last_names_list, address_list) with:
+           Person { first_name, last_name, address, raw_name }
+           Target { target_identifier, entries: Vec<Person> }
+   Why: Prevent index misalignment bugs, easier extension (add phone/email later), cleaner semantics.
+   File: src/target.rs
+   Replace: existing `pub struct Target { first_names_list: Vec<String>, last_names_list: Vec<String>, address_list: Vec<String>, }`
+   With: `#[derive(...)] pub struct Person { ... }` then `#[derive(...)] pub struct Target { pub target_identifier: String, pub entries: Vec<Person>, }`
+   Lines: Around the first struct definitions (search for `pub struct Target {`).
+
+2. Derive Traits on Models
+   Change: #[derive(Serialize, Deserialize, Debug, Clone, Default)] on Person and Target.
+   Why: Enables JSON persistence, debugging, cloning for tests, and easy initialization.
+   File: src/target.rs
+   Add: `#[derive(Serialize, Deserialize, Debug, Clone, Default)]` above both structs.
+   Requires: Ensure `use serde::{Serialize, Deserialize};` at top.
+
+3. Constructor Method
+   Change: Implement Target::new<I: Into<String>>(identifier: I).
+   Why: Centralizes initialization; avoids manual field population; accepts &str or String.
+   File: src/target.rs
+   Add inside impl Target: `pub fn new<I: Into<String>>(id: I) -> Self { Self { target_identifier: id.into(), entries: Vec::new() } }`
+   Remove: Any manual constructions in main.rs populating now-removed Vec fields.
+
+4. Mutating add_parcel Method
+   Change: pub fn add_parcel(&mut self, parcel: &Value).
+   Why: Avoids consuming self each call; allows repeated accumulation without reassigning.
+   File: src/target.rs
+   Replace: `trait AddParcel { fn add_parcel(self, parcel: &Value) -> Target; }` and its impl.
+   With: `pub trait Expandable { fn add_parcel(&mut self, parcel: &Value); }` and impl mutably pushing Person to entries.
+   Update main.rs import: `use target::{Target, Expandable};` (search old AddParcel usage).
+
+5. Name Parsing Improvements
+   Change: Use split_whitespace and safe indexing with length checks.
+   Why: Handles extra spaces and single-token names; reduces panic risk.
+   File: src/target.rs add_parcel impl.
+   Replace: `let name_seperated: Vec<&str> = name.trim().split(" ").collect();` with `let parts: Vec<&str> = raw_name.split_whitespace().collect();` and conditional length logic.
+
+6. Raw Name Preservation
+   Change: Store raw_name in Person.
+   Why: Retains original formatting for later heuristic refinement / auditing.
+   File: src/target.rs
+   Add field: `pub raw_name: String,` to Person; set in add_parcel: `raw_name: raw_name.to_string(),`.
+
+7. Safe JSON Field Extraction
+   Change: Use as_str().unwrap_or("").trim() instead of to_string().
+   Why: Avoids adding quotes and handles missing/null gracefully.
+   File: src/target.rs add_parcel.
+   Replace: `parcel["attributes"]["MAILING_NAME"].to_string()` with `parcel["attributes"]["MAILING_NAME"].as_str().unwrap_or("").trim()` (assign to raw_name variable).
+
+8. Single Source Entry Storage
+   Change: Push a Person instance instead of three separate pushes.
+   Why: Atomic addition; reduces risk of partial state on error.
+   File: src/target.rs
+   Replace three pushes to separate Vecs with one `self.entries.push(Person { ... });`.
+
+9. Duplicate Entry Handling
+   Change: Implement Target::dedup() using HashSet of (first,last,address).
+   Why: Prevents redundant accumulation across pages or repeated selections.
+   File: src/target.rs
+   Add: method `pub fn dedup(&mut self) { use std::collections::HashSet; let mut seen=HashSet::new(); self.entries.retain(|p| seen.insert((p.first_name.clone(), p.last_name.clone(), p.address.clone()))); }`
+
+10. Persistence Abstraction
+    Change: Add Saveable (save_to_json) and Loadable (load_from_json) traits.
+    Why: Separates concerns; future DB/remote backends can reuse interface.
+    File: src/target.rs
+    Add traits + impls after Target impl; ensure `use std::io::{Read, Write};` and `use std::fs::File;`.
+
+11. JSON Serialization
+    Change: Use serde_json::to_string_pretty for output.
+    Why: Human-readable files ease manual inspection / debugging.
+    File: src/target.rs in save_to_json impl: `let json_string = serde_json::to_string_pretty(self)?;`
+
+12. Error Handling Upgrade (Future)
+    Change: Replace unwrap() in main flow with ? and custom error enum (thiserror optional).
+    Why: Improves robustness and debuggability.
+    Files: src/main.rs (network & parsing) + src/target.rs (save/load). Search for `.unwrap()`.
+    Action: Convert functions to return Result<(), AppError>; propagate with `?`.
+
+13. Input Validation
+    Change: Validate numeric selections with parse::<usize>() and bounds checks.
+    Why: Prevent panics on invalid user input.
+    File: src/main.rs inside selection loop.
+    Replace: `let x_num: usize = x.parse().unwrap();` with guarded parse + range check.
+
+14. Pagination Logic
+    Change: Early continue when result_vec empty; restart page = 0.
+    Why: Graceful end-of-results behavior.
+    File: src/main.rs (already partially present). Verify before display_parcels call.
+
+15. Config Constants
+    Change: Extract base URL and maybe max page size as consts.
+    Why: Centralized configuration simplifies maintenance.
+    File: src/main.rs top-level.
+    Add: `const BASE_URL: &str = "https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query";`
+    Replace inline string in format! with BASE_URL.
+
+16. Module Reorganization (Optional)
+    Change: Split into modules: target.rs (models), api.rs (request builder), io.rs (input helpers), main.rs (orchestration).
+    Why: Improves separation of concerns, easier future growth.
+    Files: create src/api.rs, src/io.rs; move request_string construction & input() helper.
+
+17. Display / Debug Helpers (Optional)
+    Change: Implement Display for Person / summary method for Target.
+    Why: Cleaner user output and logging.
+    File: src/target.rs
+    Add: `impl std::fmt::Display for Person { ... }` and/or `impl Target { pub fn summary(&self) -> String { ... } }`.
+
+18. Testing (Add Later)
+    Change: Unit tests for add_parcel, dedup, save/load roundtrip.
+    Why: Prevent regressions during future refactors.
+    Files: tests/target_tests.rs (new). Use sample JSON snippet.
+
+19. Removal / Refactor of db_size
+    Change: Delete or move db_size to a diagnostic module; currently unused.
+    Why: Reduces dead code warnings; clarifies active logic surface.
+    File: src/main.rs remove function or annotate with #[allow(dead_code)].
+
+20. Save Trigger Placement
+    Change: Save target to JSON after search completes (and optionally on each page).
+    Why: Ensures user does not lose accumulated data on crash.
+    File: src/main.rs after loop: `target_file.dedup(); target_file.save_to_json("target_profile.json").ok();`
+
+21. Case Handling on Input
+    Change: Lowercase only search key; keep addresses and stored names in original form (plus raw).
+    Why: Avoids data distortion; supports case-sensitive future matching.
+    File: src/main.rs ensure only `name.to_lowercase()` used for query, not stored fields.
+
+22. Bounds-Safe Selection Loop
+    Change: Skip invalid indices silently or report warning instead of panicking.
+    Why: Enhances user experience during manual selection.
+    File: src/main.rs inside for x in choice loop add: `if idx==0 || idx>result_vec.len() { continue; }`.
+
+23. Optional: Add timestamp / metadata
+    Change: Add created_at or source summary fields in Target.
+    Why: Assists auditing and later correlation.
+    File: src/target.rs add field: `pub created_at: String` (ISO 8601) and set in Target::new.
+
+24. Optional: Serialization Versioning
+    Change: Add version: u32 field in Target.
+    Why: Future-proof against format evolution.
+    File: src/target.rs add `pub version: u32` default 1; adjust new() accordingly.
+
+IMPLEMENTATION ORDER (Suggested)
+1. Refactor structs (Person, Target) + add_parcel.
+2. Adjust main.rs selection logic.
+3. Add save/load traits.
+4. Add dedup.
+5. Replace unsafe unwraps gradually.
+6. Reorganize modules if desired.
+7. Add tests.
+8. Add optional metadata/versioning.
+
+DONE CHECKLIST TEMPLATE
+[ ] Structs refactored (src/target.rs)
+[ ] main.rs updated (imports, add_parcel usage)
+[ ] add_parcel working (src/target.rs)
+[ ] save/load implemented (traits + impls)
+[ ] dedup implemented (Target::dedup)
+[ ] input validation added (selection loop)
+[ ] constants extracted (BASE_URL etc.)
+[ ] unwraps reduced (error handling pass)
+[ ] db_size handled (removed or annotated)
+[ ] tests added (tests/target_tests.rs)
+[ ] docs / comments updated
+
+NOTES
+Keep raw_name for audit; future heuristics may re-parse names (suffixes Jr., III).
+Consider normalizing addresses separately (USPS format) in a later phase.
+When unsure of line numbers, search by the indicated pattern (e.g., `pub struct Target {`).
