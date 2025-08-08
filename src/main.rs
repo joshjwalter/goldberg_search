@@ -35,49 +35,6 @@ fn display_parcels(parcel_vec: &Vec<Value>) {
     }
 }
 
-fn stark_db_search() {
-    let name = input("Input Target Name (Last First): ").to_lowercase();
-    // switch to loop that auto displays 5 each page
-    let result_record_count = input("How many max results would you like per page? (up to 2000)");
-    let viewing_pages: bool = true;
-    let mut page: u32 = 0;
-    let client = Client::new();
-    let mut target_file = Target {
-        first_names_list: Vec::new(),
-        last_names_list: Vec::new(),
-        address_list: Vec::new(),
-    };
-    while viewing_pages {
-        let request_string: String = format!("https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=LOWER%28OWNER%29%20LIKE%20%27%25{}%25%27&returnGeometry=false&outFields=*&resultRecordCount={}&resultOFFSET={}", name, result_record_count, page);
-        let  result: Value = client.get(request_string).send().unwrap().json().unwrap();
-        let result_vec = result["features"].as_array().unwrap();
-        if result_vec.len() == 0 {
-            println!("No more results, restarting from the beginning");
-            page = 0;
-            continue;
-        } else {
-            display_parcels(result_vec);
-        let input_string = input("Select all choices that seem reasonable (0 for next page) ('end' to end search)");
-        let choice = input_string.trim().split(",").collect::<Vec<&str>>();
-        if choice.clone()[0] == "0" {
-            page += 1;
-            continue;
-        } else if choice.clone()[0] == "end" {
-            println!("Search manually ended");
-            break;
-            // for now just break and end program but in future go back to selection menu or something
-            // main(); allows the program to restart a new search
-            
-        } else { // add an else if for if it is an integer, becuae all edge cases hit errors with just else
-            for x in choice {
-                let x_num: usize = x.parse().unwrap();
-                target_file = target_file.add_parcel(&result_vec[x_num-1]);
-            }
-        }
-        }
-    }
-}
-
 // Depricated, used to find the db size but unneeded unless messing with upper bounds and db size changes
 fn db_size() -> u32 {
     const OFFSET: u32 = 2000;
