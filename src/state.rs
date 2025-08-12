@@ -23,13 +23,13 @@ pub struct State {
 }
 
 impl State {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             target_list: HashMap::new(),
             selected_target_identifier: String::new()
         }
     }
-    fn add_target(mut self, new_target: Target, target_identifier: String) {
+    pub fn add_target(mut self, new_target: Target, target_identifier: String) {
         self.target_list.insert(
             target_identifier,
             new_target

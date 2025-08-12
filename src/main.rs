@@ -1,8 +1,8 @@
 mod target;
 use target::{Target};
-
-
 mod state;
+use state::{State};
+
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std:: io;
@@ -62,16 +62,25 @@ fn db_size() -> u32 {
 
 fn main() {
     println!("Welcome to Goldberg Search");
+
+    let web_client = Client::new();
+
+    let mut app_state: State = State::new();
+    
+    let new_target_identifier: String = input("What do you want to call the Target you are pursuing");
+
+    app_state.add_target(Target::new(), new_target_identifier);
+    app_state.selected_target_identifier = new_target_identifier;
+
     let name = input("Input Target Name (Last First): ").to_lowercase();
     // switch to loop that auto displays 5 each page
     let result_record_count = input("How many max results would you like per page? (up to 2000)");
     let viewing_pages: bool = true;
     let mut page: u32 = 0;
-    let client = Client::new();
-    let mut target_file = Target::new();
+
     while viewing_pages {
         let request_string: String = format!("https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=LOWER%28OWNER%29%20LIKE%20%27%25{}%25%27&returnGeometry=false&outFields=*&resultRecordCount={}&resultOFFSET={}", name, result_record_count, page);
-        let  result: Value = client.get(request_string).send().unwrap().json().unwrap();
+        let  result: Value = web_client.get(request_string).send().unwrap().json().unwrap();
         let result_vec = result["features"].as_array().unwrap();
         if result_vec.len() == 0 {
             println!("No more results, restarting from the beginning");
@@ -79,7 +88,7 @@ fn main() {
             continue;
         } else {
             display_parcels(result_vec);
-            let input_string = input("Select all choices that seem reasonable (0 for next page) ('end' to end search)");
+            let input_string = input("Select all choices that seem reasonable (0 for next page) ('end' to end search) (split by comma)");
             let choice = input_string.trim().split(",").collect::<Vec<&str>>();
             if choice.clone()[0] == "0" {
                 page += 1;
@@ -92,11 +101,16 @@ fn main() {
             
             } else { // add an else if for if it is an integer, becuae all edge cases hit errors with just else
                 for x in choice {
-                    let x_num: usize = x.parse().unwrap();
+                    if x.parse::<usize>().is_ok() {
+                        let x_num: usize = x.parse().unwrap();
                 
-                    target_file.add_parcel(&result_vec[x_num-1]);
+                        app_state.target_list.entry(app_state.selected_target_identifier.clone());
+                    } else {
+                        println!("{:?} is an incorrect selection, ignoring input", x);
+                    }
+
                 }
             }
-        }
+        }      
     }
 }
