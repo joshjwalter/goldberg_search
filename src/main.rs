@@ -67,9 +67,8 @@ fn main() {
 
     let mut app_state: State = State::new();
     
-    let new_target_identifier: String = input("What do you want to call the Target you are pursuing");
-
-    app_state.add_target(Target::new(), new_target_identifier);
+    let new_target_identifier = input("What do you want to call the Target you are pursuing? ");
+    app_state.add_target(Target::new(), new_target_identifier.clone());
     app_state.selected_target_identifier = new_target_identifier;
 
     let name = input("Input Target Name (Last First): ").to_lowercase();
@@ -104,7 +103,10 @@ fn main() {
                     if x.parse::<usize>().is_ok() {
                         let x_num: usize = x.parse().unwrap();
                 
-                        app_state.target_list.entry(app_state.selected_target_identifier.clone());
+                        app_state
+                            .target_list
+                            .entry(app_state.selected_target_identifier.clone())
+                            .and_modify(|e| e.add_parcel(&result_vec[x_num-1]));
                     } else {
                         println!("{:?} is an incorrect selection, ignoring input", x);
                     }

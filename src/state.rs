@@ -29,10 +29,10 @@ impl State {
             selected_target_identifier: String::new()
         }
     }
-    pub fn add_target(mut self, new_target: Target, target_identifier: String) {
-        self.target_list.insert(
-            target_identifier,
-            new_target
-        );
+    /// Instead of consuming `self`, we now mutate in place
+    pub fn add_target(&mut self, target: Target, identifier: String) {
+        self.target_list.insert(identifier.clone(), target);
+        // set the selected identifier here so you don't have to re-use the moved String
+        self.selected_target_identifier = identifier;
     }
 }
