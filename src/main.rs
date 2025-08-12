@@ -67,6 +67,7 @@ fn main() {
 
     let mut app_state: State = State::new();
     
+    //make this a function for creating a new Target search and create a framework where I can initialize one of these or browse other Targets or export or whatnot
     let new_target_identifier = input("What do you want to call the Target you are pursuing? ");
     app_state.add_target(Target::new(), new_target_identifier.clone());
     app_state.selected_target_identifier = new_target_identifier;
@@ -74,7 +75,7 @@ fn main() {
     let name = input("Input Target Name (Last First): ").to_lowercase();
     // switch to loop that auto displays 5 each page
     let result_record_count = input("How many max results would you like per page? (up to 2000)");
-    let viewing_pages: bool = true;
+    let mut viewing_pages: bool = true;
     let mut page: u32 = 0;
 
     while viewing_pages {
@@ -94,9 +95,7 @@ fn main() {
                 continue;
             } else if choice.clone()[0] == "end" {
                 println!("Search manually ended");
-                break;
-                // for now just break and end program but in future go back to selection menu or something
-                // main(); allows the program to restart a new search
+                viewing_pages = false;
             
             } else { // add an else if for if it is an integer, becuae all edge cases hit errors with just else
                 for x in choice {
