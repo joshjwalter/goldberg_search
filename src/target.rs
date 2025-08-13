@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 
@@ -92,3 +93,39 @@ impl Target {
 }
 
 //IMPL PARCEL::NEW
+
+impl Parcel {
+    pub fn new(first_name: String, last_name: String, address: String) -> Self {
+        Self {
+            first_name: first_name,
+            last_name: last_name,
+            address: address
+        }
+    }
+}
+
+impl fmt::Display for Parcel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "\n-----START-----\n\
+             Mailing Name: {}\n\
+             Land Use Description: {}\n\
+             Alltoment: {}\n\
+             Mailing Address: {}\n\
+             Billing Address: {}\n\
+             Appraised Building Value: {}\n\
+             Appraised Land Value: {}\n\
+             Appraised Total Value: {}\n\
+             ------END------\n",
+            self["attributes"]["MAILING_NAME"],
+            self["attributes"]["LAND_USE_DESCRIPTION"],
+            self["attributes"]["ALLOTMENT"],
+            self["attributes"]["MAILING_ADDRESS"],
+            self["attributes"]["BILLING_ADDRESS1"],
+            self["attributes"]["APPRAISED_BUILDING_VALUE"],
+            self["attributes"]["APPRAISED_LAND_VALUE"],
+            self["attributes"]["APPRAISED_TOTAL_VALUE"],
+        )
+    }
+}

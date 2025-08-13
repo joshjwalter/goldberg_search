@@ -1,5 +1,5 @@
 mod target;
-use target::{Target};
+use target::{Target, Parcel};
 mod state;
 use state::{State};
 
@@ -17,7 +17,7 @@ fn input(text: &str) -> String {
     return user_input;
 }
 
-fn display_parcels(parcel_vec: &Vec<Value>) {
+fn display_parcels(parcel_vec: &Vec<Parcel>) {
     let mut number: u32 = 1;
     for x in parcel_vec {
         println!("({})", number);
@@ -81,8 +81,12 @@ fn main() {
     while viewing_pages {
         let request_string: String = format!("https://scgisa.starkcountyohio.gov/arcgis/rest/services/Auditor/StarkCountyParcels_Viewer/MapServer/0/query?f=json&where=LOWER%28OWNER%29%20LIKE%20%27%25{}%25%27&returnGeometry=false&outFields=*&resultRecordCount={}&resultOFFSET={}", name, result_record_count, page);
         let  result: Value = web_client.get(request_string).send().unwrap().json().unwrap();
-        let result_vec = result["features"].as_array().unwrap();
-        if result_vec.len() == 0 {
+        let result_vec_values = result["features"].as_array().unwrap();
+        let result_vec_parcels: Vec<Parcel>;
+        for x in result_vec_values {
+            result_vec_parcels.push(Parcel::new(x["attributes"]["MAILING_NAME"][1].to_string(), x["attributes"]["MAILING_NAME"][0].to_string(), x["attributes"]["MAILING_ADDRESS"].to_string()))
+        }
+        if result_vec_parcels.len() == 0 {
             println!("No more results, restarting from the beginning");
             page = 0;
             continue;
